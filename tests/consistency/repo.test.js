@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import companyConfig from "../../config/company.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = process.env.GITHUB_REPOSITORY;
@@ -76,7 +77,8 @@ describe("Repository Configuration", () => {
       const html = await res.text();
       expect(html).toContain("<!DOCTYPE html>");
       expect(html).toContain("peviitor");
-      expect(html).toContain("EPAM");
+      // Should mention the brand from config/company.json
+      expect(html.toUpperCase()).toContain(companyConfig.brand.toUpperCase());
       console.log(`✅ GitHub Pages HTML loaded from ${pagesUrl}`);
     });
   });
