@@ -25,4 +25,4 @@ Risc minim — site-ul nu restricționează scraping. Totuși scraper-ul rămân
 
 ## Diferență față de EPAM template
 
-EPAM are `Disallow: /api/*` și `Disallow: /*/vacancy/*` (scraping-ul EPAM e sensibil). MEJIX nu are nicio constrângere în robots.txt.
+EPAM (template-ul de la care a fost derivat acest scraper) are `Disallow: /api/*` și `Disallow: /*/vacancy/*` în robots.txt. MEJIX nu are nicio constrângere — scraping-ul este complet permis.

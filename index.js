@@ -228,7 +228,7 @@ function transformJobsForSOLR(payload) {
  * Main function that orchestrates the complete scraping workflow:
  * 1. Check existing jobs in Solr
  * 2. Validate company via ANAF
- * 3. Scrape jobs from EPAM API
+ * 3. Scrape jobs from MEJIX API
  * 4. Transform data for Solr
  * 5. Upsert jobs to Solr
  * 6. Report summary

@@ -23,7 +23,7 @@ Proiectul automatizează colectarea zilnică a job-urilor MEJIX din România, me
 
 ## Features
 
-- Extrage job-uri din API-ul public EPAM Careers Romania
+- Extrage job-uri de pe pagina HTML `mejix.com/jobs` (cheerio, single-page)
 - Validează compania via ANAF (CUI, status activ/inactiv, adresă completă)
 - **Cache ANAF la 7 zile** — committed în repo, nu lovește demoANAF la fiecare scrape
 - **Fallback la cache stale** dacă ANAF e indisponibil
@@ -54,16 +54,16 @@ Proiectul automatizează colectarea zilnică a job-urilor MEJIX din România, me
 ├── tests/
 │   ├── package.json            # Jest config for test suite
 │   ├── company.json            # Mock ANAF data used in unit tests
-│   ├── validate-epam-jobs.js   # SOLR job URL validation script
+│   ├── validate-mejix-jobs.js   # SOLR job URL validation script
 │   ├── unit/
-│   │   ├── index.test.js       # Tests for parseApiJobs, mapToJobModel, transformJobsForSOLR
+│   │   ├── index.test.js       # Tests for parseHtmlJobs, mapToJobModel, transformJobsForSOLR
 │   │   ├── company.test.js     # Tests for validateAndGetCompany, fallback caching
 │   │   ├── solr.test.js        # Tests for query, upsert, delete operations
 │   │   └── demoanaf.test.js    # Tests for ANAF search and company retrieval
 │   ├── integration/
 │   │   └── workflow.test.js    # Live ANAF + SOLR integration tests
 │   ├── e2e/
-│   │   └── scraper.test.js     # Full pipeline tests with real EPAM API
+│   │   └── scraper.test.js     # Full pipeline tests with real MEJIX HTML
 │   └── consistency/
 │       ├── public.test.js      # Verifies repo is public
 │       ├── repo.test.js        # Verifies branch, Pages, secrets, workflows
@@ -139,7 +139,7 @@ npm run test:e2e
 The `job-seeker-ro-spider.yml` workflow runs daily at 6 AM UTC via GitHub Actions. It:
 1. Runs pre-scrape tests (unit + integration)
 2. Validates company data via ANAF
-3. Scrapes current job listings from EPAM Careers
+3. Scrapes current job listings from mejix.com/jobs
 4. Updates Solr with new/removed jobs
 5. Runs post-scrape tests (e2e + consistency)
 6. Uploads test results and job data as artifacts
@@ -149,7 +149,7 @@ The `job-seeker-ro-spider.yml` workflow runs daily at 6 AM UTC via GitHub Action
 ### Test Automation
 
 The `automation-testing.yml` workflow runs on every push and pull request. It:
-1. Ensures EPAM exists in the company core
+1. Ensures MEJIX exists in the company core
 2. Runs unit, integration, e2e, and consistency tests
 3. Validates data integrity in Solr
 4. Pushes test reports to [`docs/test-results/`](https://sebiboga.github.io/mejix-srl-nodejs-scraper/test-results/)
@@ -172,7 +172,7 @@ This project is managed by [ASOCIATIA OPORTUNITATI SI CARIERE](https://oportunit
 
 ## Robots.txt Policy
 
-Acest scraper respectă regulile din [robots.txt](https://careers.epam.com/robots.txt) al EPAM Careers. Pentru analiza completă, vezi [ROBOTS.md](ROBOTS.md).
+Acest scraper respectă regulile din [robots.txt](https://www.mejix.com/robots.txt) al MEJIX Careers. Pentru analiza completă, vezi [ROBOTS.md](ROBOTS.md).
 
 **Puncte cheie:**
 - API-ul `/api/*` este `Disallow` în robots.txt — scraper-ul îl folosește, dar cu rate limiting și un singur User-Agent identificabil (`job_seeker_ro_spider`)
@@ -182,4 +182,4 @@ Acest scraper respectă regulile din [robots.txt](https://careers.epam.com/robot
 
 ## Disclaimer
 
-This scraper is designed for educational purposes and legitimate job data aggregation for the Romanian job market. Please respect EPAM's Terms of Service and robots.txt when using this scraper.
+This scraper is designed for educational purposes and legitimate job data aggregation for the Romanian job market. Please respect MEJIX's Terms of Service and robots.txt when using this scraper.

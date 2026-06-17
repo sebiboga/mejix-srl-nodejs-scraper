@@ -25,7 +25,7 @@ Use this checklist when starting a scraper for `<COMPANY>`:
 |------|---------------|
 | `config/company.json` | Edit all fields: `cif`, `legalName`, `brand`, `website`, `careerUrl`, `apiBase`, `apiCountryId`, `defaultLocation`, `scraperFile` |
 
-All scraper code, CI workflows, and the static HTML read from this file. You should not need to edit constants in `index.js`, `company.js`, `demoanaf.js`, `tests/validate-epam-jobs.js`, `docs/index.html`, or `.github/workflows/automation-testing.yml`.
+All scraper code, CI workflows, and the static HTML read from this file. You should not need to edit constants in `index.js`, `company.js`, `demoanaf.js`, `tests/validate-mejix-jobs.js`, `docs/index.html`, or `.github/workflows/automation-testing.yml`.
 
 **Secondary edits (cosmetic / metadata):**
 
@@ -35,7 +35,7 @@ All scraper code, CI workflows, and the static HTML read from this file. You sho
 | `UPDATE-REPO-ABOUT.md` | New description with legal name and CIF |
 | `package.json` | `name` field |
 | `README.md` | Title, badges (URLs to the new repo), Overview |
-| `tests/validate-epam-jobs.js` | Rename to `validate-<brand>-jobs.js` (optional) |
+| `tests/validate-mejix-jobs.js` | Rename to `validate-<brand>-jobs.js` (optional) |
 
 ### 3. Adjust the scraper to the new data source
 
@@ -65,7 +65,7 @@ Follow [VERIFY.md](VERIFY.md) before merging. The same 4 levels of tests (unit /
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/epam-systems-international-srl-nodejs-scraper.git
+git clone https://github.com/YOUR_USERNAME/mejix-srl-nodejs-scraper.git
 
 # Install dependencies
 npm install
@@ -76,7 +76,7 @@ npm test
 
 ## Reporting Issues
 
-Open a [GitHub Issue](https://github.com/sebiboga/epam-systems-international-srl-nodejs-scraper/issues) with:
+Open a [GitHub Issue](https://github.com/sebiboga/mejix-srl-nodejs-scraper/issues) with:
 - Clear description of the problem
 - Steps to reproduce
 - Expected vs actual behavior
