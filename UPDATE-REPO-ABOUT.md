@@ -1,7 +1,7 @@
 # Update Repo About
 
 ## Description
-Scraper automat pentru locurile de muncă EPAM Systems International SRL (CIF: 33159615) — extrage din EPAM Careers API, validează via ANAF și publică pe peviitor.ro
+Scraper automat pentru locurile de muncă MEJIX SRL (CIF: 17372688) — extrage de pe mejix.com/jobs, validează via ANAF și publică pe peviitor.ro
 
 ## Topics (exactly 2, per TOPICS.md)
 - job-seeker-ro-spider

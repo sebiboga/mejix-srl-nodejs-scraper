@@ -1,13 +1,13 @@
 /**
- * EPAM Job Scraper - Main Entry Point
- * 
- * PURPOSE: Scrapes job listings from EPAM Careers Romania API and stores them in Solr.
- * This is the primary orchestrator that coordinates company validation, job scraping,
- * data transformation, and Solr storage.
+ * MEJIX Job Scraper - Main Entry Point
+ *
+ * Scrapes job listings from https://www.mejix.com/jobs/ (single-page HTML)
+ * and stores them in Solr. Uses cheerio (HTML parsing), not an API.
  */
 
 import fetch from "node-fetch";
 import fs from "fs";
+import * as cheerio from "cheerio";
 import { fileURLToPath } from "url";
 import { validateAndGetCompany } from "./company.js";
 import { querySOLR, deleteJobByUrl, upsertJobs, upsertCompany } from "./solr.js";
@@ -20,13 +20,10 @@ import companyConfig from "./config/company.js";
 
 const COMPANY_CIF = companyConfig.cif;
 const JOB_BASE = companyConfig.apiBase;
-const ROMANIA_COUNTRY_ID = companyConfig.apiCountryId;
+const CAREER_URL = companyConfig.careerUrl;
 
 // Request timeout in milliseconds (10 seconds)
 const TIMEOUT = 10000;
-
-// Number of jobs to fetch per API page request
-const PAGE_SIZE = 10;
 
 // Global variable to store company name after validation
 let COMPANY_NAME = null;
@@ -42,161 +39,88 @@ let COMPANY_NAME = null;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ============================================================================
-// API FUNCTIONS - Fetching data from EPAM Careers
+// FETCH + PARSE - HTML scraping with cheerio
 // ============================================================================
 
 /**
- * Fetches a single page of jobs from EPAM Careers API
- * @param {number} pageNum - Page number (1-indexed)
- * @returns {Promise<Object>} - API response with job data
+ * Fetches the careers page HTML.
+ * @returns {Promise<string>} The raw HTML
  */
-async function fetchJobsPage(pageNum) {
-  // Calculate offset for pagination (API uses 0-based indexing)
-  const from = (pageNum - 1) * PAGE_SIZE;
-  
-  // Build EPAM API URL with filters for Romania jobs only
-  const url = `https://careers.epam.com/api/jobs/v2/search/careers-i18n?from=${from}&lang=en&size=${PAGE_SIZE}&sortBy=relevance%3Brelocation%3Dasc&websiteLocale=en-us&facets=country%3D${ROMANIA_COUNTRY_ID}`;
-  
-  const res = await fetch(url, {
+async function fetchJobsHtml() {
+  const res = await fetch(CAREER_URL, {
     headers: {
       "User-Agent": "job_seeker_ro_spider",
-      "Accept": "application/json"
+      "Accept": "text/html"
     }
   });
-  
-  if (!res.ok) {
-    throw new Error(`API error ${res.status} for page=${pageNum}`);
-  }
-  
-  const data = await res.json();
-  return data;
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${CAREER_URL}`);
+  return res.text();
 }
 
-// ============================================================================
-// DATA PARSING - Converting API response to our job model
-// ============================================================================
-
 /**
- * Parses raw API response into our standardized job format
- * @param {Object} apiData - Raw response from EPAM API
- * @returns {Object} - Object containing jobs array and total count
+ * Parses the MEJIX careers HTML into normalized job objects.
+ * Selector: #open-positions a[href^='/jobs/']
+ * Each anchor contains <h3> title; the last inner div holds a span with
+ * "workmode · city" text.
+ *
+ * @param {string} html
+ * @returns {{jobs: Array<Object>, total: number}}
  */
-function parseApiJobs(apiData) {
-  // Extract jobs array from API response (handle missing data gracefully)
-  const jobs = apiData.data?.jobs || [];
-  const total = apiData.data?.total || 0;
-  
-  return {
-    jobs: jobs.map(job => {
-      // Determine work mode based on vacancy type
-      // Maps EPAM's vacancy_type to our standardized: remote, on-site, or hybrid
-      const vacancyType = job.vacancy_type || "Hybrid";
-      let workmode = "hybrid";
-      if (vacancyType.toLowerCase().includes("remote")) workmode = "remote";
-      else if (vacancyType.toLowerCase().includes("office")) workmode = "on-site";
-      
-      // Extract location - prefer city names, fallback to country
-      const location = [];
-      if (job.city && job.city.length > 0) {
-        for (const c of job.city) {
-          if (c.name) location.push(c.name);
-        }
-      } else if (job.country?.[0]?.name) {
-        location.push(job.country[0].name);
-      }
-      
-      // Build job URL - use SEO URL if available, otherwise construct from UID
-      const uid = job.uid || "";
-      const seoUrl = job.seo?.url || `/en/vacancy/${uid}_en`;
-      const url = seoUrl.startsWith('http') ? seoUrl : `${JOB_BASE}${seoUrl}`;
-      
-      // Normalize skill tags to lowercase for consistency
-      const tags = (job.skills || []).map(s => s.toLowerCase());
-      
-      // Return standardized job object
-      return {
-        url,
-        title: job.name,
-        uid: job.uid,
-        workmode,
-        location,
-        tags
-      };
-    }),
-    total
-  };
+function parseHtmlJobs(html) {
+  const $ = cheerio.load(html);
+  const jobs = [];
+
+  $("#open-positions a[href^='/jobs/']").each((_, el) => {
+    const $a = $(el);
+    const href = $a.attr("href") || "";
+    const title = $a.find("h3").first().text().trim();
+    if (!title || href === "/jobs/" || href === "/jobs") return; // skip self-links
+
+    const url = href.startsWith("http") ? href : `${JOB_BASE}${href}`;
+    const locationText = $a.find("> div").last().find("span").first().text().trim();
+
+    let workmode = "hybrid";
+    const lower = locationText.toLowerCase();
+    if (lower.includes("remote")) workmode = "remote";
+    else if (lower.includes("on-site") || lower.includes("office")) workmode = "on-site";
+
+    const location = [];
+    if (/cluj-napoca/i.test(locationText)) location.push("Cluj-Napoca");
+    if (location.length === 0) location.push(companyConfig.defaultLocation);
+
+    jobs.push({ url, title, workmode, location, tags: [] });
+  });
+
+  return { jobs, total: jobs.length };
 }
 
 // ============================================================================
-// SCRAPING LOGIC - Paginated collection of all jobs
+// SCRAPING LOGIC - Single-page collection of all jobs
 // ============================================================================
 
 /**
- * Scrapes all job listings from EPAM by iterating through paginated API responses
- * @param {boolean} testOnlyOnePage - If true, stops after first page (for testing)
+ * Scrapes all job listings from the MEJIX careers page (single page, no pagination).
+ * @param {boolean} _testOnlyOnePage - Ignored; kept for signature compatibility with template
  * @returns {Promise<Array>} - Array of unique job objects
  */
-async function scrapeAllListings(testOnlyOnePage = false) {
-  const allJobs = [];
-  const seenUrls = new Set(); // Track seen URLs to avoid duplicates
-  let page = 1;
-  let totalJobs = 0;
-  const MAX_PAGES = 10; // Safety limit to prevent infinite loops
+async function scrapeAllListings(_testOnlyOnePage = false) {
+  console.log(`Fetching ${CAREER_URL}`);
+  const html = await fetchJobsHtml();
+  const { jobs, total } = parseHtmlJobs(html);
 
-  // Paginate through all job listings
-  while (true) {
-    console.log(`Fetching API page: ${page}`);
-    const data = await fetchJobsPage(page);
-    const result = parseApiJobs(data);
-    const jobs = result.jobs;
+  console.log(`Found ${total} jobs on the page`);
 
-    // Stop if no jobs found on this page
-    if (!jobs.length) {
-      console.log(`No jobs found on page ${page}, stopping.`);
-      break;
+  const seen = new Set();
+  const unique = [];
+  for (const job of jobs) {
+    if (!seen.has(job.url)) {
+      seen.add(job.url);
+      unique.push(job);
     }
-
-    // Capture total count from first page response
-    if (page === 1) {
-      totalJobs = result.total;
-      console.log(`Total jobs on site: ${totalJobs}`);
-    }
-
-    // Collect unique jobs (avoid duplicates across pages)
-    let newJobs = 0;
-    for (const job of jobs) {
-      if (!seenUrls.has(job.url)) {
-        seenUrls.add(job.url);
-        allJobs.push(job);
-        newJobs++;
-      }
-    }
-    console.log(`Page ${page}: ${jobs.length} jobs, ${newJobs} new (total: ${allJobs.length})`);
-
-    // Test mode: stop after first page
-    if (testOnlyOnePage) {
-      console.log("Test mode: stopping after page 1.");
-      break;
-    }
-
-    // Safety: stop after max pages
-    if (page >= MAX_PAGES) {
-      console.log(`Max pages (${MAX_PAGES}) reached, stopping.`);
-      break;
-    }
-
-    // Stop if no new jobs (we've seen everything)
-    if (newJobs === 0) {
-      console.log(`No new jobs on page ${page}, stopping.`);
-      break;
-    }
-
-    page += 1;
-    await sleep(1000); // Respectful delay between pages
   }
 
-  console.log(`Total unique jobs collected: ${allJobs.length}`);
-  return allJobs;
+  console.log(`Total unique jobs collected: ${unique.length}`);
+  return unique;
 }
 
 // ============================================================================
@@ -356,7 +280,7 @@ async function main() {
 
     // Create payload with metadata
     const payload = {
-      source: "epam.com",
+      source: "mejix.com",
       scrapedAt: new Date().toISOString(),
       company: COMPANY_NAME,
       cif: localCif,
@@ -401,7 +325,7 @@ async function main() {
     const finalResult = await querySOLR(COMPANY_CIF);
     console.log(`\n📊 === SUMMARY ===`);
     console.log(`📊 Jobs existing in SOLR before scrape: ${existingCount}`);
-    console.log(`📊 Jobs scraped from EPAM website: ${scrapedCount}`);
+    console.log(`📊 Jobs scraped from MEJIX website: ${scrapedCount}`);
     console.log(`📊 Jobs in SOLR after scrape: ${finalResult.numFound}`);
     console.log(`====================`);
 
@@ -415,7 +339,7 @@ async function main() {
 }
 
 // Export functions for testing
-export { parseApiJobs, mapToJobModel, transformJobsForSOLR };
+export { parseHtmlJobs, mapToJobModel, transformJobsForSOLR };
 
 // Run main function when executed directly
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

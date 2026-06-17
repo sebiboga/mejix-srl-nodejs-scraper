@@ -36,13 +36,13 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "schedule" ]; then
             echo "Schedule trigger — running LIVE mode..."
-            node --no-deprecation tests/validate-epam-jobs.js --delete
+            node --no-deprecation tests/validate-mejix-jobs.js --delete
           elif [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
             echo "Running in DRY RUN mode..."
-            node --no-deprecation tests/validate-epam-jobs.js --dry-run
+            node --no-deprecation tests/validate-mejix-jobs.js --dry-run
           else
             echo "Running in LIVE mode (will delete expired jobs)..."
-            node --no-deprecation tests/validate-epam-jobs.js --delete
+            node --no-deprecation tests/validate-mejix-jobs.js --delete
           fi
         env:
           SOLR_AUTH: ${{ secrets.SOLR_AUTH }}
