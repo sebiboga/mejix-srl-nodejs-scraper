@@ -3,11 +3,11 @@
 ## Project
 MEJIX scraper for peviitor.ro (Node.js, ESM, Jest)
 
-## 📐 This Repo Is a Template
-This repo is the **reference implementation** for all Node.js scrapers in the peviitor.ro ecosystem. Other scrapers are derived from it. When making changes:
-- **All company-specific identity lives in `config/company.json`** (CIF, brand, legalName, URLs, API params). Read from `config/company.js` in Node code, or via `jq` in workflows. Never hardcode in source files.
-- **Only the API parsing logic in `index.js`** (`fetchJobsPage`, `parseApiJobs`) is MEJIX-specific. The output shape (`mapToJobModel`, `transformJobsForSOLR`) must stay uniform across derived scrapers.
-- **If you add a new file, update [CONTRIBUTING.md](CONTRIBUTING.md)** — the derivation checklist must stay accurate.
+## 🌱 This Repo Is a Derived Scraper
+This repo is **derived from** [job_seeker_ro_spider](https://github.com/sebiboga/epam-systems-international-srl-nodejs-scraper) — the EPAM template that is the reference implementation for the peviitor.ro ecosystem. When making changes:
+- **All company-specific identity lives in `config/company.json`** (CIF, brand, legalName, URLs). Read from `config/company.js` in Node code, or via `jq` in workflows. Never hardcode in source files.
+- **The MEJIX-specific scraping logic is in `index.js`** (`fetchJobsHtml`, `parseHtmlJobs`). MEJIX uses static HTML + cheerio (no API), single-page. The output shape (`mapToJobModel`, `transformJobsForSOLR`) is inherited from the template and must NOT change — that's what keeps SOLR uniform across derived scrapers.
+- **Structural changes** (pipeline, caching, tests architecture) should be discussed upstream in the EPAM template repo first, so all derivatives benefit.
 
 ## Critical Rules
 
