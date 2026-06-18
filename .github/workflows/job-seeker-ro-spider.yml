@@ -20,6 +20,7 @@ jobs:
           node-version: '24'
           
       - name: Sync with remote
+        if: github.event_name != 'pull_request'
         run: git pull origin main --rebase -X theirs
 
       - name: Install dependencies
