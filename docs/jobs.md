@@ -10,11 +10,11 @@
 | Location | Henri Barbusse, 44-46, Municipiul Cluj-Napoca, Cluj |
 | Website | [https://www.mejix.com](https://www.mejix.com) |
 | Careers | [https://www.mejix.com/jobs/](https://www.mejix.com/jobs/) |
-| Last Scraped | 2026-06-22 |
+| Last Scraped | 2026-06-23 |
 
 ## Current Job Listings (5)
 
-_Generated: 2026-06-22T12:11:02.647Z_
+_Generated: 2026-06-23T09:47:24.679Z_
 
 ### Full Stack Developer (AI-Augmented)-Level: Senior
 
